@@ -1,9 +1,13 @@
+use std::io::Read;
 
-type Value = i8;
+use ascii::AsAsciiStr;
+
+type Value = u8;
 pub struct Brainfuck {
-    instructions: Vec<u8>,
-    current: nonmax::NonMaxUsize,
-    data: Vec<Cell>
+    instructions: ascii::AsciiString,
+    current_inst: usize,
+    data: Vec<Cell>,
+    current_cell: nonmax::NonMaxUsize,
 }
 
 pub struct Cell {
@@ -13,95 +17,128 @@ pub struct Cell {
 }
 
 impl Brainfuck {
-    pub fn new() -> Self {
+    pub fn new(instructions: impl ascii::IntoAsciiString) -> Self {
         Brainfuck {
-            instructions: Vec::new(),
-            current: nonmax::NonMaxUsize::ZERO,
-            data: vec![Cell { value: 0, prev: None, next: None }],
+            instructions: instructions.into_ascii_string().unwrap(),
+            current_inst: 0,
+            current_cell: nonmax::NonMaxUsize::ZERO,
+            data: vec![Cell {
+                value: 0,
+                prev: None,
+                next: None,
+            }],
         }
     }
 
-    pub fn inc(&mut self) {
+    fn inc(&mut self) {
         self.current_cell_mut().value += 1;
     }
 
-    pub fn dec(&mut self) {
+    fn dec(&mut self) {
         self.current_cell_mut().value -= 1;
     }
 
-    pub fn print(&self) {
-        print!("{}", self.current())
+    fn print(&self) {
+        print!("{}", self.current() as char)
     }
 
     /// Returns the current Cell's value.
-    pub fn current(&self) -> Value {
-        self.data[self.current.get()].value
+    fn current(&self) -> Value {
+        self.data[self.current_cell.get()].value
     }
 
     fn current_cell(&self) -> &Cell {
-        &self.data[self.current.get()]
+        &self.data[self.current_cell.get()]
     }
 
     fn current_cell_mut(&mut self) -> &mut Cell {
-        &mut self.data[self.current.get()]
+        &mut self.data[self.current_cell.get()]
+    }
+
+    fn current_inst(&self) -> ascii::AsciiChar {
+        self.instructions[self.current_inst]
     }
 
     /// Retrocedes to previous Cell.
-    pub fn prev(&mut self) {
+    fn prev(&mut self) {
         if let Some(prev) = self.current_cell().prev {
-            self.current = prev;
+            self.current_cell = prev;
         } else {
             self.data.push(Cell {
                 value: 0,
                 prev: None,
-                next: Some(self.current),
+                next: Some(self.current_cell),
             });
             let prev = nonmax::NonMaxUsize::new(self.data.len() - 1).unwrap();
             self.current_cell_mut().prev = Some(prev);
-            self.current = prev;
+            self.current_cell = prev;
         }
     }
-    
+
     /// Advances to next Cell.
-    pub fn next(&mut self) {
+    fn next(&mut self) {
         if let Some(next) = self.current_cell().next {
-            self.current = next;
+            self.current_cell = next;
         } else {
             self.data.push(Cell {
                 value: 0,
-                prev: Some(self.current),
+                prev: Some(self.current_cell),
                 next: None,
             });
             let next = nonmax::NonMaxUsize::new(self.data.len() - 1).unwrap();
             self.current_cell_mut().next = Some(next);
-            self.current = next;
+            self.current_cell = next;
         }
     }
-}
 
+    pub fn execute(mut self) -> std::io::Result<()> {
+        while let Some(inst) = self.instructions.get_ascii(self.current_inst) {
+            match inst {
+                ascii::AsciiChar::LessThan => self.prev(),
+                ascii::AsciiChar::GreaterThan => self.next(),
+                ascii::AsciiChar::Plus => self.inc(),
+                ascii::AsciiChar::Minus => self.dec(),
+                ascii::AsciiChar::Dot => self.print(),
+                ascii::AsciiChar::Comma => {
+                    let mut input: u8 = 0;
+                    std::io::stdin().read_exact(std::slice::from_mut(&mut input))?;
+                    self.current_cell_mut().value = input;
+                }
+                ascii::AsciiChar::BracketOpen => 'bracketopen: {
+                    if self.current() != 0 { 
+                        break 'bracketopen;
+                    }
+           
+                    let mut brackets = 1;
+                    while brackets > 0 {
+                        self.current_inst += 1;
+                        match self.current_inst() {
+                            ascii::AsciiChar::BracketOpen => brackets += 1,
+                            ascii::AsciiChar::BracketClose => brackets -= 1,
+                            _ => {}
+                        }
+                    }
+                },
+                ascii::AsciiChar::BracketClose => 'bracketclose: {
+                    if self.current() == 0 { 
+                        break 'bracketclose;
+                    }
+           
+                    let mut brackets = 1;
+                    while brackets > 0 {
+                        self.current_inst -= 1;
+                        match self.current_inst() {
+                            ascii::AsciiChar::BracketOpen => brackets -= 1,
+                            ascii::AsciiChar::BracketClose => brackets += 1,
+                            _ => {}
+                        }
+                    }
+                },
+                _ => {}
+            }
+            self.current_inst += 1
+        }
 
-mod tests {
-    use super::Brainfuck;
-
-    #[test]
-    fn cells() {
-        let mut brainfuck = Brainfuck::new();
-        assert_eq!(brainfuck.current(), 0);
-        
-        brainfuck.inc();
-        brainfuck.inc();
-        assert_eq!(brainfuck.current(), 2);
-        brainfuck.next();
-        assert_eq!(brainfuck.current(), 0);
-
-        brainfuck.inc();
-        brainfuck.dec();
-        brainfuck.inc();
-        assert_eq!(brainfuck.current(), 1);
-        brainfuck.prev();
-        assert_eq!(brainfuck.current(), 2);
-
-        brainfuck.prev();
-        assert_eq!(brainfuck.current(), 0);
+        Ok(())
     }
 }

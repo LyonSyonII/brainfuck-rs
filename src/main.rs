@@ -1,3 +1,3 @@
 fn main() {
-    println!("Hello, world!");
+    brainfuck::run_brainfuck();
 }
