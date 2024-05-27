@@ -1,0 +1,8 @@
+[package]
+name = "brainfuck"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ascii = "1.1.0"
+nonmax = "0.5.5"
