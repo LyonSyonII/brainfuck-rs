@@ -25,7 +25,7 @@ fn execute(
         match inst {
             b'+' => cells[current_cell].0 += 1,
             b'-' => cells[current_cell].0 -= 1,
-            b'.' => write!(&mut stdout, "{}", cells[current_cell].0 as char)?,
+            b'.' => stdout.write_all(&[cells[current_cell].0])?,
             b',' => {
                 let mut input = [0u8];
                 let _ = stdin.read_exact(&mut input);
