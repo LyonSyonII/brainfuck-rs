@@ -1,18 +1,21 @@
-use std::io::{Read as _, Write as _};
+use std::io::{Read, Write};
 
-fn main() {
+fn main() -> std::io::Result<()> {
+    let mut stdout = std::io::stdout();
+    let stdin = std::io::stdin();
+
     let Some(file) = std::env::args().nth(1) else {
-        return println!("brainfuck FILE");
+        return writeln!(stdout, "brainfuck FILE");
     };
-    execute(std::fs::read(file).unwrap());
+    execute(std::fs::read(file)?, stdout, stdin)
 }
 
-const NONE: usize = usize::MAX;
-
-fn execute(instructions: impl AsRef<[u8]>) -> std::io::Result<()> {
-    let mut stdout = std::io::stdout();
-    let mut stdin = std::io::stdin();
-
+fn execute(
+    instructions: impl AsRef<[u8]>,
+    mut stdout: impl Write,
+    mut stdin: impl Read,
+) -> std::io::Result<()> {
+    const NONE: usize = usize::MAX;
     let instructions = instructions.as_ref();
     let mut current_inst = 0;
     let mut cells = vec![(0u8, NONE, NONE)]; // vec![(value, prev, next)]
@@ -31,14 +34,14 @@ fn execute(instructions: impl AsRef<[u8]>) -> std::io::Result<()> {
             b'<' => {
                 if cells[current_cell].1 == NONE {
                     cells.push((0, NONE, current_cell));
-                    cells[current_cell].1 = cells.len()-1;
+                    cells[current_cell].1 = cells.len() - 1;
                 };
                 current_cell = cells[current_cell].1;
             }
             b'>' => {
                 if cells[current_cell].2 == NONE {
                     cells.push((0, current_cell, NONE));
-                    cells[current_cell].2 = cells.len()-1;
+                    cells[current_cell].2 = cells.len() - 1;
                 };
                 current_cell = cells[current_cell].2;
             }
@@ -46,19 +49,19 @@ fn execute(instructions: impl AsRef<[u8]>) -> std::io::Result<()> {
                 let mut brackets = 1;
                 while brackets > 0 {
                     current_inst += 1;
-                    let current_inst = instructions[current_inst];
-                    brackets += usize::from(current_inst == b'[') - usize::from(current_inst == b']');
+                    let inst = instructions[current_inst];
+                    brackets += usize::from(inst == b'[') - usize::from(inst == b']');
                 }
             }
             b']' if cells[current_cell].0 != 0 => {
                 let mut brackets = 1;
                 while brackets > 0 {
                     current_inst -= 1;
-                    let current_inst = instructions[current_inst];
-                    brackets += usize::from(current_inst == b']') - usize::from(current_inst == b'[');
+                    let inst = instructions[current_inst];
+                    brackets += usize::from(inst == b']') - usize::from(inst == b'[');
                 }
             }
-            
+
             _ => {}
         }
         current_inst += 1;
