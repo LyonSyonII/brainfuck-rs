@@ -1,16 +1,18 @@
-use std::io::Read as _;
+use std::io::{Read as _, Write as _};
 
 fn main() {
     let Some(file) = std::env::args().nth(1) else {
-        println!("brainfuck FILE");
-        return;
+        return println!("brainfuck FILE");
     };
     execute(std::fs::read(file).unwrap());
 }
 
 const NONE: usize = usize::MAX;
 
-fn execute(instructions: impl AsRef<[u8]>) {
+fn execute(instructions: impl AsRef<[u8]>) -> std::io::Result<()> {
+    let mut stdout = std::io::stdout();
+    let mut stdin = std::io::stdin();
+
     let instructions = instructions.as_ref();
     let mut current_inst = 0;
     let mut cells = vec![(0u8, NONE, NONE)]; // vec![(value, prev, next)]
@@ -20,10 +22,10 @@ fn execute(instructions: impl AsRef<[u8]>) {
         match inst {
             b'+' => cells[current_cell].0 += 1,
             b'-' => cells[current_cell].0 -= 1,
-            b'.' => print!("{}", cells[current_cell].0 as char),
+            b'.' => write!(&mut stdout, "{}", cells[current_cell].0 as char)?,
             b',' => {
                 let mut input = [0u8];
-                let _ = std::io::stdin().read_exact(&mut input);
+                let _ = stdin.read_exact(&mut input);
                 cells[current_cell].0 = input[0];
             }
             b'<' => {
@@ -61,4 +63,5 @@ fn execute(instructions: impl AsRef<[u8]>) {
         }
         current_inst += 1;
     }
+    Ok(())
 }
