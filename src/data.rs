@@ -91,16 +91,17 @@ impl Brainfuck {
                 b'.' => print!("{}", self.current() as char),
                 b',' => 'read: {
                     let mut input: u8 = 0;
-                    let Ok(_) = std::io::stdin().read_exact(std::slice::from_mut(&mut input)) else {
+                    let Ok(_) = std::io::stdin().read_exact(std::slice::from_mut(&mut input))
+                    else {
                         break 'read;
                     };
                     self.current_cell_mut().value = input;
                 }
-                b'['  => 'bracketopen: {
-                    if self.current() != 0 { 
+                b'[' => 'bracketopen: {
+                    if self.current() != 0 {
                         break 'bracketopen;
                     }
-           
+
                     let mut brackets = 1;
                     while brackets > 0 {
                         self.current_inst += 1;
@@ -110,12 +111,12 @@ impl Brainfuck {
                             _ => {}
                         }
                     }
-                },
+                }
                 b']' => 'bracketclose: {
-                    if self.current() == 0 { 
+                    if self.current() == 0 {
                         break 'bracketclose;
                     }
-           
+
                     let mut brackets = 1;
                     while brackets > 0 {
                         self.current_inst -= 1;
@@ -125,7 +126,7 @@ impl Brainfuck {
                             _ => {}
                         }
                     }
-                },
+                }
                 _ => {}
             }
             self.current_inst += 1
